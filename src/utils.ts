@@ -42,8 +42,7 @@ export function getConfiguredProjectDir(inputs: Inputs): string {
   return projectDir;
 }
 
-export function getInstallCwd(inputs: Inputs, cwd?: string): string {
-  const projectDir = getConfiguredProjectDir(inputs);
+export function getInstallCwd(projectDir: string, cwd?: string): string {
   return cwd ? resolvePath(cwd, projectDir) : projectDir;
 }
 

@@ -52,7 +52,7 @@ describe("detectLockFile", () => {
 
       expect(result).toEqual({
         type: LockFileType.Pnpm,
-        path: "/test/workspace/pnpm-lock.yaml",
+        path: join(mockWorkspace, "pnpm-lock.yaml"),
         filename: "pnpm-lock.yaml",
       });
     });
@@ -64,7 +64,7 @@ describe("detectLockFile", () => {
 
       expect(result).toEqual({
         type: LockFileType.Npm,
-        path: "/test/workspace/package-lock.json",
+        path: join(mockWorkspace, "package-lock.json"),
         filename: "package-lock.json",
       });
     });
@@ -76,7 +76,7 @@ describe("detectLockFile", () => {
 
       expect(result).toEqual({
         type: LockFileType.Yarn,
-        path: "/test/workspace/yarn.lock",
+        path: join(mockWorkspace, "yarn.lock"),
         filename: "yarn.lock",
       });
     });
@@ -105,11 +105,12 @@ describe("detectLockFile", () => {
     it("should resolve relative explicit paths from the provided search directory", () => {
       vi.mocked(existsSync).mockReturnValue(true);
 
-      const result = detectLockFile("pnpm-lock.yaml", "/test/workspace/web");
+      const webWorkspace = join(mockWorkspace, "web");
+      const result = detectLockFile("pnpm-lock.yaml", webWorkspace);
 
       expect(result).toEqual({
         type: LockFileType.Pnpm,
-        path: "/test/workspace/web/pnpm-lock.yaml",
+        path: join(webWorkspace, "pnpm-lock.yaml"),
         filename: "pnpm-lock.yaml",
       });
     });
@@ -217,7 +218,7 @@ describe("getConfiguredProjectDir", () => {
         registryUrl: undefined,
         scope: undefined,
       }),
-    ).toBe("/test/workspace/web");
+    ).toBe(join(mockWorkspace, "web"));
   });
 
   it("should fall back to workspace root", () => {
@@ -233,7 +234,7 @@ describe("getConfiguredProjectDir", () => {
         registryUrl: undefined,
         scope: undefined,
       }),
-    ).toBe("/test/workspace");
+    ).toBe(mockWorkspace);
   });
 
   it("should throw a clear error when working-directory does not exist", () => {
@@ -251,7 +252,7 @@ describe("getConfiguredProjectDir", () => {
         registryUrl: undefined,
         scope: undefined,
       }),
-    ).toThrow("working-directory not found: web (resolved to /test/workspace/web)");
+    ).toThrow(`working-directory not found: web (resolved to ${join(mockWorkspace, "web")})`);
   });
 
   it("should throw a clear error when working-directory is not a directory", () => {
@@ -271,7 +272,9 @@ describe("getConfiguredProjectDir", () => {
         registryUrl: undefined,
         scope: undefined,
       }),
-    ).toThrow("working-directory is not a directory: web (resolved to /test/workspace/web)");
+    ).toThrow(
+      `working-directory is not a directory: web (resolved to ${join(mockWorkspace, "web")})`,
+    );
   });
 });
 
@@ -303,7 +306,7 @@ describe("resolvePath", () => {
       scope: undefined,
     });
 
-    expect(resolvePath(".nvmrc", projectDir)).toBe("/test/workspace/web/.nvmrc");
+    expect(resolvePath(".nvmrc", projectDir)).toBe(join(mockWorkspace, "web", ".nvmrc"));
   });
 });
 
@@ -319,14 +322,15 @@ describe("getCacheDirectories", () => {
       stderr: "",
     });
 
-    const result = await getCacheDirectories(LockFileType.Pnpm, "/test/workspace/web");
+    const cacheCwd = join("/test", "workspace", "web");
+    const result = await getCacheDirectories(LockFileType.Pnpm, cacheCwd);
 
     expect(result).toEqual(["/tmp/pnpm-store"]);
     expect(getExecOutput).toHaveBeenCalledWith(
       "vp",
       ["pm", "cache", "dir"],
       expect.objectContaining({
-        cwd: "/test/workspace/web",
+        cwd: cacheCwd,
         silent: true,
         ignoreReturnCode: true,
       }),
@@ -350,72 +354,20 @@ describe("getInstallCwd", () => {
   });
 
   it("should default to the configured project directory", () => {
-    expect(
-      getInstallCwd({
-        version: "latest",
-        nodeVersion: undefined,
-        nodeVersionFile: undefined,
-        workingDirectory: "web",
-        runInstall: [],
-        cache: true,
-        cacheDependencyPath: undefined,
-        registryUrl: undefined,
-        scope: undefined,
-      }),
-    ).toBe("/test/workspace/web");
+    expect(getInstallCwd(join(mockWorkspace, "web"))).toBe(join(mockWorkspace, "web"));
   });
 
   it("should resolve override cwd relative to working-directory", () => {
-    expect(
-      getInstallCwd(
-        {
-          version: "latest",
-          nodeVersion: undefined,
-          nodeVersionFile: undefined,
-          workingDirectory: "web",
-          runInstall: [],
-          cache: false,
-          cacheDependencyPath: undefined,
-          registryUrl: undefined,
-          scope: undefined,
-        },
-        "packages/app",
-      ),
-    ).toBe("/test/workspace/web/packages/app");
+    expect(getInstallCwd(join(mockWorkspace, "web"), "packages/app")).toBe(
+      join(mockWorkspace, "web", "packages", "app"),
+    );
   });
 
   it("should fall back to workspace root when no project directory is configured", () => {
-    expect(
-      getInstallCwd({
-        version: "latest",
-        nodeVersion: undefined,
-        nodeVersionFile: undefined,
-        workingDirectory: undefined,
-        runInstall: [],
-        cache: false,
-        cacheDependencyPath: undefined,
-        registryUrl: undefined,
-        scope: undefined,
-      }),
-    ).toBe("/test/workspace");
+    expect(getInstallCwd(mockWorkspace)).toBe(mockWorkspace);
   });
 
   it("should keep absolute override cwd as-is", () => {
-    expect(
-      getInstallCwd(
-        {
-          version: "latest",
-          nodeVersion: undefined,
-          nodeVersionFile: undefined,
-          workingDirectory: "web",
-          runInstall: [],
-          cache: false,
-          cacheDependencyPath: undefined,
-          registryUrl: undefined,
-          scope: undefined,
-        },
-        "/custom/path/app",
-      ),
-    ).toBe("/custom/path/app");
+    expect(getInstallCwd(join(mockWorkspace, "web"), "/custom/path/app")).toBe("/custom/path/app");
   });
 });
