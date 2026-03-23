@@ -2,7 +2,14 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vite-plus/test"
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { getExecOutput } from "@actions/exec";
-import { detectLockFile, getCacheDirectoryCwd, getCacheDirectories } from "./utils.js";
+import {
+  detectLockFile,
+  getConfiguredProjectDir,
+  getCacheDirectoryCwd,
+  getCacheDirectories,
+  getProjectCwd,
+  resolveProjectPath,
+} from "./utils.js";
 import { LockFileType } from "./types.js";
 
 vi.mock("@actions/core", () => ({
@@ -170,6 +177,81 @@ describe("detectLockFile", () => {
   });
 });
 
+describe("getConfiguredProjectDir", () => {
+  const mockWorkspace = "/test/workspace";
+
+  beforeEach(() => {
+    vi.stubEnv("GITHUB_WORKSPACE", mockWorkspace);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("should use working-directory when provided", () => {
+    expect(
+      getConfiguredProjectDir({
+        version: "latest",
+        nodeVersion: undefined,
+        nodeVersionFile: undefined,
+        workingDirectory: "web",
+        runInstall: [],
+        cache: false,
+        cacheDependencyPath: undefined,
+        registryUrl: undefined,
+        scope: undefined,
+      }),
+    ).toBe("/test/workspace/web");
+  });
+
+  it("should fall back to workspace root", () => {
+    expect(
+      getConfiguredProjectDir({
+        version: "latest",
+        nodeVersion: undefined,
+        nodeVersionFile: undefined,
+        workingDirectory: undefined,
+        runInstall: [],
+        cache: false,
+        cacheDependencyPath: undefined,
+        registryUrl: undefined,
+        scope: undefined,
+      }),
+    ).toBe("/test/workspace");
+  });
+});
+
+describe("resolveProjectPath", () => {
+  const mockWorkspace = "/test/workspace";
+
+  beforeEach(() => {
+    vi.stubEnv("GITHUB_WORKSPACE", mockWorkspace);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("should resolve relative paths from working-directory", () => {
+    expect(
+      resolveProjectPath(
+        {
+          version: "latest",
+          nodeVersion: undefined,
+          nodeVersionFile: undefined,
+          workingDirectory: "web",
+          runInstall: [],
+          cache: false,
+          cacheDependencyPath: undefined,
+          registryUrl: undefined,
+          scope: undefined,
+        },
+        ".nvmrc",
+      ),
+    ).toBe("/test/workspace/web/.nvmrc");
+  });
+});
+
 describe("getCacheDirectoryCwd", () => {
   const mockWorkspace = "/test/workspace";
 
@@ -214,5 +296,81 @@ describe("getCacheDirectories", () => {
         ignoreReturnCode: true,
       }),
     );
+  });
+});
+
+describe("getProjectCwd", () => {
+  const mockWorkspace = "/test/workspace";
+
+  beforeEach(() => {
+    vi.stubEnv("GITHUB_WORKSPACE", mockWorkspace);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("should prefer cache-dependency-path over run-install cwd", () => {
+    expect(
+      getProjectCwd({
+        version: "latest",
+        nodeVersion: undefined,
+        nodeVersionFile: undefined,
+        workingDirectory: undefined,
+        runInstall: [{ cwd: "./app" }],
+        cache: true,
+        cacheDependencyPath: "web/pnpm-lock.yaml",
+        registryUrl: undefined,
+        scope: undefined,
+      }),
+    ).toBe("/test/workspace/web");
+  });
+
+  it("should fall back to run-install cwd when cache-dependency-path is not set", () => {
+    expect(
+      getProjectCwd({
+        version: "latest",
+        nodeVersion: undefined,
+        nodeVersionFile: undefined,
+        workingDirectory: undefined,
+        runInstall: [{ cwd: "./app" }],
+        cache: false,
+        cacheDependencyPath: undefined,
+        registryUrl: undefined,
+        scope: undefined,
+      }),
+    ).toBe("/test/workspace/app");
+  });
+
+  it("should fall back to workspace root when no project-specific cwd is provided", () => {
+    expect(
+      getProjectCwd({
+        version: "latest",
+        nodeVersion: undefined,
+        nodeVersionFile: undefined,
+        workingDirectory: undefined,
+        runInstall: [],
+        cache: false,
+        cacheDependencyPath: undefined,
+        registryUrl: undefined,
+        scope: undefined,
+      }),
+    ).toBe("/test/workspace");
+  });
+
+  it("should prefer working-directory over cache-dependency-path", () => {
+    expect(
+      getProjectCwd({
+        version: "latest",
+        nodeVersion: undefined,
+        nodeVersionFile: undefined,
+        workingDirectory: "web",
+        runInstall: [{ cwd: "./app" }],
+        cache: true,
+        cacheDependencyPath: "pkg/pnpm-lock.yaml",
+        registryUrl: undefined,
+        scope: undefined,
+      }),
+    ).toBe("/test/workspace/web");
   });
 });

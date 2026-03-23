@@ -3,6 +3,7 @@ import { getExecOutput } from "@actions/exec";
 import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, basename, dirname } from "node:path";
+import type { Inputs } from "./types.js";
 import { LockFileType } from "./types.js";
 import type { LockFileInfo } from "./types.js";
 
@@ -19,8 +20,39 @@ export function resolveWorkspacePath(filePath: string): string {
   return isAbsolute(filePath) ? filePath : join(getWorkspaceDir(), filePath);
 }
 
+export function resolvePath(filePath: string, baseDir: string): string {
+  return isAbsolute(filePath) ? filePath : join(baseDir, filePath);
+}
+
 export function getCacheDirectoryCwd(lockFilePath: string): string {
   return dirname(resolveWorkspacePath(lockFilePath));
+}
+
+export function getConfiguredProjectDir(inputs: Inputs): string {
+  return inputs.workingDirectory
+    ? resolveWorkspacePath(inputs.workingDirectory)
+    : getWorkspaceDir();
+}
+
+export function resolveProjectPath(inputs: Inputs, filePath: string): string {
+  return resolvePath(filePath, getConfiguredProjectDir(inputs));
+}
+
+export function getProjectCwd(inputs: Inputs): string {
+  if (inputs.workingDirectory) {
+    return resolveWorkspacePath(inputs.workingDirectory);
+  }
+
+  if (inputs.cacheDependencyPath) {
+    return dirname(resolveProjectPath(inputs, inputs.cacheDependencyPath));
+  }
+
+  const runInstallCwd = inputs.runInstall[0]?.cwd;
+  if (runInstallCwd) {
+    return resolveWorkspacePath(runInstallCwd);
+  }
+
+  return getWorkspaceDir();
 }
 
 // Lock file patterns in priority order
@@ -34,12 +66,15 @@ const LOCK_FILES: Array<{ filename: string; type: LockFileType }> = [
 /**
  * Detect lock file in the workspace
  */
-export function detectLockFile(explicitPath?: string): LockFileInfo | undefined {
-  const workspace = getWorkspaceDir();
+export function detectLockFile(
+  explicitPath?: string,
+  searchDir = getWorkspaceDir(),
+): LockFileInfo | undefined {
+  const workspace = searchDir;
 
   // If explicit path provided, use it
   if (explicitPath) {
-    const fullPath = resolveWorkspacePath(explicitPath);
+    const fullPath = resolvePath(explicitPath, searchDir);
 
     if (existsSync(fullPath)) {
       const filename = basename(fullPath);

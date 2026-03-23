@@ -4,15 +4,22 @@ import { warning, info, debug, saveState, setOutput } from "@actions/core";
 import { arch, platform } from "node:os";
 import type { Inputs } from "./types.js";
 import { State, Outputs } from "./types.js";
-import { detectLockFile, getCacheDirectories, getCacheDirectoryCwd } from "./utils.js";
+import {
+  detectLockFile,
+  getCacheDirectories,
+  getCacheDirectoryCwd,
+  getConfiguredProjectDir,
+} from "./utils.js";
 
 export async function restoreCache(inputs: Inputs): Promise<void> {
+  const projectDir = getConfiguredProjectDir(inputs);
+
   // Detect lock file
-  const lockFile = detectLockFile(inputs.cacheDependencyPath);
+  const lockFile = detectLockFile(inputs.cacheDependencyPath, projectDir);
   if (!lockFile) {
     const message = inputs.cacheDependencyPath
       ? `No lock file found for cache-dependency-path: ${inputs.cacheDependencyPath}. Skipping cache restore.`
-      : "No lock file found in workspace root. Skipping cache restore.";
+      : `No lock file found in project directory: ${projectDir}. Skipping cache restore.`;
     warning(message);
     setOutput(Outputs.CacheHit, false);
     return;
