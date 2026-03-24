@@ -1,5 +1,5 @@
 name: "Setup vp"
-description: "Install Vite+ (vp) and optionally cache project dependencies"
+description: "Install Vite+ (vp) and optionally cache project dependencies and task results"
 author: "voidzero-dev"
 branding:
   icon: zap
@@ -24,7 +24,7 @@ inputs:
     description: "Project directory to use for relative paths, lockfile auto-detection, environment checks, and default `vp install` execution."
     required: false
   cache:
-    description: "Enable caching of project dependencies"
+    description: "Enable caching of project dependencies and Vite+ task results"
     required: false
     default: "false"
   cache-dependency-path:

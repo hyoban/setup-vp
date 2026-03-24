@@ -1,12 +1,13 @@
 # setup-vp
 
-GitHub Action to set up [Vite+](https://viteplus.dev) (`vp`) with dependency caching support.
+GitHub Action to set up [Vite+](https://viteplus.dev) (`vp`) with dependency and task caching support.
 
 ## Features
 
 - Install Vite+ globally via official install scripts
 - Optionally set up a specific Node.js version via `vp env use`
 - Cache project dependencies with auto-detection of lock files
+- Cache Vite+ task results for `vp run --cache`
 - Optionally run `vp install` after setup
 - Support for all major package managers (npm, pnpm, yarn)
 
@@ -137,7 +138,7 @@ jobs:
 | `node-version-file`     | Path to file containing Node.js version (`.nvmrc`, `.node-version`, `.tool-versions`, `package.json`)       | No       |                |
 | `working-directory`     | Project directory used for relative paths, lockfile auto-detection, environment checks, and default install | No       | Workspace root |
 | `run-install`           | Run `vp install` after setup. Accepts boolean or YAML object with `cwd`/`args`                              | No       | `true`         |
-| `cache`                 | Enable caching of project dependencies                                                                      | No       | `false`        |
+| `cache`                 | Enable caching of project dependencies and Vite+ task results                                               | No       | `false`        |
 | `cache-dependency-path` | Path to lock file for cache key generation                                                                  | No       | Auto-detected  |
 | `registry-url`          | Optional registry to set up for auth. Sets the registry in `.npmrc` and reads auth from `NODE_AUTH_TOKEN`   | No       |                |
 | `scope`                 | Optional scope for scoped registries. Falls back to repo owner for GitHub Packages                          | No       |                |
@@ -155,13 +156,15 @@ When `working-directory` is set, relative `run-install.cwd`, `node-version-file`
 
 ### Dependency Cache
 
-When `cache: true` is set, the action additionally caches project dependencies by auto-detecting your lock file:
+When `cache: true` is set, the action additionally caches project dependencies and the local Vite+ task cache by auto-detecting your lock file:
 
 | Lock File           | Package Manager | Cache Directory |
 | ------------------- | --------------- | --------------- |
 | `pnpm-lock.yaml`    | pnpm            | pnpm store      |
 | `package-lock.json` | npm             | npm cache       |
 | `yarn.lock`         | yarn            | yarn cache      |
+
+It also caches `./node_modules/.vite/task-cache`, which is used by `vp run --cache`.
 
 The dependency cache key format is: `vite-plus-{OS}-{arch}-{pm}-{lockfile-hash}`
 

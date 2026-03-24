@@ -315,7 +315,7 @@ describe("getCacheDirectories", () => {
     vi.resetAllMocks();
   });
 
-  it("should run vp pm cache dir in the provided cwd", async () => {
+  it("should include the package manager cache dir and task cache dir for the provided cwd", async () => {
     vi.mocked(getExecOutput).mockResolvedValue({
       exitCode: 0,
       stdout: "/tmp/pnpm-store\n",
@@ -325,7 +325,10 @@ describe("getCacheDirectories", () => {
     const cacheCwd = join("/test", "workspace", "web");
     const result = await getCacheDirectories(LockFileType.Pnpm, cacheCwd);
 
-    expect(result).toEqual(["/tmp/pnpm-store"]);
+    expect(result).toEqual([
+      "/tmp/pnpm-store",
+      join(cacheCwd, "node_modules", ".vite", "task-cache"),
+    ]);
     expect(getExecOutput).toHaveBeenCalledWith(
       "vp",
       ["pm", "cache", "dir"],
@@ -335,6 +338,19 @@ describe("getCacheDirectories", () => {
         ignoreReturnCode: true,
       }),
     );
+  });
+
+  it("should still include the task cache dir when vp pm cache dir is unavailable", async () => {
+    vi.mocked(getExecOutput).mockResolvedValue({
+      exitCode: 1,
+      stdout: "",
+      stderr: "failed",
+    });
+
+    const cacheCwd = join("/test", "workspace", "web");
+    const result = await getCacheDirectories(LockFileType.Pnpm, cacheCwd);
+
+    expect(result).toEqual([join(cacheCwd, "node_modules", ".vite", "task-cache")]);
   });
 });
 

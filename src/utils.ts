@@ -2,7 +2,7 @@ import { info, warning, debug } from "@actions/core";
 import { getExecOutput } from "@actions/exec";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { isAbsolute, join, basename } from "node:path";
+import { basename, isAbsolute, join } from "node:path";
 import type { Inputs } from "./types.js";
 import { LockFileType } from "./types.js";
 import type { LockFileInfo } from "./types.js";
@@ -120,7 +120,7 @@ export async function getCacheDirectories(lockType: LockFileType, cwd: string): 
     case LockFileType.Npm:
     case LockFileType.Pnpm:
     case LockFileType.Yarn:
-      return getViteCacheDir(cwd);
+      return getProjectCacheDirs(cwd);
     default:
       return [];
   }
@@ -149,7 +149,13 @@ async function getCommandOutput(
   }
 }
 
-async function getViteCacheDir(cwd: string): Promise<string[]> {
-  const cacheDir = await getCommandOutput("vp", ["pm", "cache", "dir"], { cwd });
-  return cacheDir ? [cacheDir] : [];
+async function getProjectCacheDirs(cwd: string): Promise<string[]> {
+  const cachePaths = [join(cwd, "node_modules", ".vite", "task-cache")];
+  const packageManagerCacheDir = await getCommandOutput("vp", ["pm", "cache", "dir"], { cwd });
+
+  if (packageManagerCacheDir) {
+    cachePaths.unshift(packageManagerCacheDir);
+  }
+
+  return cachePaths;
 }
