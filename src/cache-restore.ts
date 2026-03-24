@@ -5,9 +5,15 @@ import { arch, platform } from "node:os";
 import { dirname } from "node:path";
 import type { Inputs } from "./types.js";
 import { State, Outputs } from "./types.js";
-import { detectLockFile, getCacheDirectories, getConfiguredProjectDir } from "./utils.js";
+import {
+  detectLockFile,
+  getConfiguredProjectDir,
+  getDependencyCacheDirectories,
+  getTaskCacheDirectories,
+  getTaskCacheScope,
+} from "./utils.js";
 
-export async function restoreCache(inputs: Inputs): Promise<void> {
+export async function restoreCache(inputs: Inputs, nodeVersion?: string): Promise<void> {
   const projectDir = getConfiguredProjectDir(inputs);
 
   // Detect lock file
@@ -23,20 +29,7 @@ export async function restoreCache(inputs: Inputs): Promise<void> {
 
   info(`Using lock file: ${lockFile.path}`);
   const cacheCwd = dirname(lockFile.path);
-  info(`Resolving dependency cache directory in: ${cacheCwd}`);
-
-  // Get cache directories based on lock file type
-  const cachePaths = await getCacheDirectories(lockFile.type, cacheCwd);
-  if (!cachePaths.length) {
-    warning(
-      `No cache directories found for ${lockFile.type} in ${cacheCwd}. Skipping cache restore.`,
-    );
-    setOutput(Outputs.CacheHit, false);
-    return;
-  }
-
-  debug(`Cache paths: ${cachePaths.join(", ")}`);
-  saveState(State.CachePaths, JSON.stringify(cachePaths));
+  info(`Resolving cache directories in: ${cacheCwd}`);
 
   // Generate cache key: vite-plus-{platform}-{arch}-{lockfile-type}-{hash}
   const runnerOS = process.env.RUNNER_OS || platform();
@@ -47,26 +40,54 @@ export async function restoreCache(inputs: Inputs): Promise<void> {
     throw new Error(`Failed to generate hash for lock file: ${lockFile.path}`);
   }
 
-  const primaryKey = `vite-plus-${runnerOS}-${runnerArch}-${lockFile.type}-${fileHash}`;
-  const restoreKeys = [
+  const dependencyCachePaths = await getDependencyCacheDirectories(lockFile.type, cacheCwd);
+  if (dependencyCachePaths.length) {
+    debug(`Dependency cache paths: ${dependencyCachePaths.join(", ")}`);
+    saveState(State.DependencyCachePaths, JSON.stringify(dependencyCachePaths));
+  } else {
+    warning(`No dependency cache directories found for ${lockFile.type} in ${cacheCwd}.`);
+  }
+
+  const taskCachePaths = getTaskCacheDirectories(cacheCwd);
+  debug(`Task cache paths: ${taskCachePaths.join(", ")}`);
+  saveState(State.TaskCachePaths, JSON.stringify(taskCachePaths));
+
+  const dependencyPrimaryKey = `vite-plus-${runnerOS}-${runnerArch}-${lockFile.type}-${fileHash}`;
+  const dependencyRestoreKeys = [
     `vite-plus-${runnerOS}-${runnerArch}-${lockFile.type}-`,
     `vite-plus-${runnerOS}-${runnerArch}-`,
   ];
+  const taskScope = getTaskCacheScope(cacheCwd, nodeVersion);
+  const taskPrimaryKey = `vite-plus-task-${runnerOS}-${runnerArch}-${lockFile.type}-${taskScope}-${fileHash}`;
 
-  debug(`Primary key: ${primaryKey}`);
-  debug(`Restore keys: ${restoreKeys.join(", ")}`);
+  debug(`Dependency cache primary key: ${dependencyPrimaryKey}`);
+  debug(`Dependency cache restore keys: ${dependencyRestoreKeys.join(", ")}`);
+  debug(`Task cache primary key: ${taskPrimaryKey}`);
 
-  saveState(State.CachePrimaryKey, primaryKey);
-
-  // Attempt to restore cache
-  const matchedKey = await restoreCacheAction(cachePaths, primaryKey, restoreKeys);
-
-  if (matchedKey) {
-    info(`Cache restored from key: ${matchedKey}`);
-    saveState(State.CacheMatchedKey, matchedKey);
-    setOutput(Outputs.CacheHit, true);
-  } else {
-    info("Cache not found");
-    setOutput(Outputs.CacheHit, false);
+  let dependencyMatchedKey: string | undefined;
+  if (dependencyCachePaths.length) {
+    saveState(State.DependencyCachePrimaryKey, dependencyPrimaryKey);
+    dependencyMatchedKey = await restoreCacheAction(
+      dependencyCachePaths,
+      dependencyPrimaryKey,
+      dependencyRestoreKeys,
+    );
+    if (dependencyMatchedKey) {
+      info(`Dependency cache restored from key: ${dependencyMatchedKey}`);
+      saveState(State.DependencyCacheMatchedKey, dependencyMatchedKey);
+    } else {
+      info("Dependency cache not found");
+    }
   }
+
+  saveState(State.TaskCachePrimaryKey, taskPrimaryKey);
+  const taskMatchedKey = await restoreCacheAction(taskCachePaths, taskPrimaryKey);
+  if (taskMatchedKey) {
+    info(`Task cache restored from key: ${taskMatchedKey}`);
+    saveState(State.TaskCacheMatchedKey, taskMatchedKey);
+  } else {
+    info("Task cache not found");
+  }
+
+  setOutput(Outputs.CacheHit, Boolean(dependencyMatchedKey || taskMatchedKey));
 }

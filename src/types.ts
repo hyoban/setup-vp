@@ -45,9 +45,12 @@ export interface LockFileInfo {
 // State keys for main/post communication
 export enum State {
   IsPost = "IS_POST",
-  CachePrimaryKey = "CACHE_PRIMARY_KEY",
-  CacheMatchedKey = "CACHE_MATCHED_KEY",
-  CachePaths = "CACHE_PATHS",
+  DependencyCachePrimaryKey = "DEPENDENCY_CACHE_PRIMARY_KEY",
+  DependencyCacheMatchedKey = "DEPENDENCY_CACHE_MATCHED_KEY",
+  DependencyCachePaths = "DEPENDENCY_CACHE_PATHS",
+  TaskCachePrimaryKey = "TASK_CACHE_PRIMARY_KEY",
+  TaskCacheMatchedKey = "TASK_CACHE_MATCHED_KEY",
+  TaskCachePaths = "TASK_CACHE_PATHS",
   InstalledVersion = "INSTALLED_VERSION",
 }
 

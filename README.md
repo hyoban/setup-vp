@@ -165,6 +165,7 @@ When `cache: true` is set, the action additionally caches project dependencies a
 | `yarn.lock`         | yarn            | yarn cache      |
 
 It also caches `./node_modules/.vite/task-cache`, which is used by `vp run --cache`.
+This task cache is stored under a separate key scoped to the workflow/job, project directory, and Node.js version to avoid collisions between different CI tasks.
 
 The dependency cache key format is: `vite-plus-{OS}-{arch}-{pm}-{lockfile-hash}`
 

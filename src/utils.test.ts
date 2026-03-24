@@ -5,8 +5,10 @@ import { getExecOutput } from "@actions/exec";
 import {
   detectLockFile,
   getConfiguredProjectDir,
-  getCacheDirectories,
+  getDependencyCacheDirectories,
   getInstallCwd,
+  getTaskCacheDirectories,
+  getTaskCacheScope,
   resolvePath,
 } from "./utils.js";
 import { LockFileType } from "./types.js";
@@ -310,12 +312,12 @@ describe("resolvePath", () => {
   });
 });
 
-describe("getCacheDirectories", () => {
+describe("getDependencyCacheDirectories", () => {
   afterEach(() => {
     vi.resetAllMocks();
   });
 
-  it("should include the package manager cache dir and task cache dir for the provided cwd", async () => {
+  it("should resolve the package manager cache dir in the provided cwd", async () => {
     vi.mocked(getExecOutput).mockResolvedValue({
       exitCode: 0,
       stdout: "/tmp/pnpm-store\n",
@@ -323,12 +325,9 @@ describe("getCacheDirectories", () => {
     });
 
     const cacheCwd = join("/test", "workspace", "web");
-    const result = await getCacheDirectories(LockFileType.Pnpm, cacheCwd);
+    const result = await getDependencyCacheDirectories(LockFileType.Pnpm, cacheCwd);
 
-    expect(result).toEqual([
-      "/tmp/pnpm-store",
-      join(cacheCwd, "node_modules", ".vite", "task-cache"),
-    ]);
+    expect(result).toEqual(["/tmp/pnpm-store"]);
     expect(getExecOutput).toHaveBeenCalledWith(
       "vp",
       ["pm", "cache", "dir"],
@@ -340,7 +339,7 @@ describe("getCacheDirectories", () => {
     );
   });
 
-  it("should still include the task cache dir when vp pm cache dir is unavailable", async () => {
+  it("should return an empty array when vp pm cache dir is unavailable", async () => {
     vi.mocked(getExecOutput).mockResolvedValue({
       exitCode: 1,
       stdout: "",
@@ -348,9 +347,51 @@ describe("getCacheDirectories", () => {
     });
 
     const cacheCwd = join("/test", "workspace", "web");
-    const result = await getCacheDirectories(LockFileType.Pnpm, cacheCwd);
+    const result = await getDependencyCacheDirectories(LockFileType.Pnpm, cacheCwd);
 
-    expect(result).toEqual([join(cacheCwd, "node_modules", ".vite", "task-cache")]);
+    expect(result).toEqual([]);
+  });
+});
+
+describe("getTaskCacheDirectories", () => {
+  it("should return the local vite task cache directory for the provided cwd", () => {
+    const cacheCwd = join("/test", "workspace", "web");
+    expect(getTaskCacheDirectories(cacheCwd)).toEqual([
+      join(cacheCwd, "node_modules", ".vite", "task-cache"),
+    ]);
+  });
+});
+
+describe("getTaskCacheScope", () => {
+  const mockWorkspace = "/test/workspace";
+
+  beforeEach(() => {
+    vi.stubEnv("GITHUB_WORKSPACE", mockWorkspace);
+    vi.stubEnv("GITHUB_WORKFLOW", "CI");
+    vi.stubEnv("GITHUB_JOB", "unit-tests");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("should generate a stable scope for the same workflow, job, node version, and cwd", () => {
+    const cwd = join(mockWorkspace, "web");
+    expect(getTaskCacheScope(cwd, "22")).toBe(getTaskCacheScope(cwd, "22"));
+  });
+
+  it("should change when the job changes", () => {
+    const cwd = join(mockWorkspace, "web");
+    const currentScope = getTaskCacheScope(cwd, "22");
+
+    vi.stubEnv("GITHUB_JOB", "integration-tests");
+
+    expect(getTaskCacheScope(cwd, "22")).not.toBe(currentScope);
+  });
+
+  it("should change when the node version changes", () => {
+    const cwd = join(mockWorkspace, "web");
+    expect(getTaskCacheScope(cwd, "20")).not.toBe(getTaskCacheScope(cwd, "22"));
   });
 });
 

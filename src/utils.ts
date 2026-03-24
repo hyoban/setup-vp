@@ -1,8 +1,9 @@
 import { info, warning, debug } from "@actions/core";
 import { getExecOutput } from "@actions/exec";
+import { createHash } from "node:crypto";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, isAbsolute, join } from "node:path";
+import { basename, isAbsolute, join, relative } from "node:path";
 import type { Inputs } from "./types.js";
 import { LockFileType } from "./types.js";
 import type { LockFileInfo } from "./types.js";
@@ -113,17 +114,38 @@ function inferLockFileType(fullPath: string, filename: string): LockFileInfo {
 }
 
 /**
- * Get cache directories based on package manager type
+ * Get dependency cache directories based on package manager type.
  */
-export async function getCacheDirectories(lockType: LockFileType, cwd: string): Promise<string[]> {
+export async function getDependencyCacheDirectories(
+  lockType: LockFileType,
+  cwd: string,
+): Promise<string[]> {
   switch (lockType) {
     case LockFileType.Npm:
     case LockFileType.Pnpm:
     case LockFileType.Yarn:
-      return getProjectCacheDirs(cwd);
+      return getPackageManagerCacheDirs(cwd);
     default:
       return [];
   }
+}
+
+export function getTaskCacheDirectories(cwd: string): string[] {
+  return [join(cwd, "node_modules", ".vite", "task-cache")];
+}
+
+export function getTaskCacheScope(cwd: string, nodeVersion?: string): string {
+  const workspace = getWorkspaceDir();
+  const projectPath = relative(workspace, cwd) || ".";
+  const normalizedProjectPath = projectPath.replaceAll("\\", "/");
+  const workflow = process.env.GITHUB_WORKFLOW_REF || process.env.GITHUB_WORKFLOW || "default";
+  const job = process.env.GITHUB_JOB || "default";
+  const runtime = nodeVersion || "system";
+
+  return createHash("sha256")
+    .update(`${workflow}\n${job}\n${runtime}\n${normalizedProjectPath}`)
+    .digest("hex")
+    .slice(0, 16);
 }
 
 async function getCommandOutput(
@@ -149,13 +171,7 @@ async function getCommandOutput(
   }
 }
 
-async function getProjectCacheDirs(cwd: string): Promise<string[]> {
-  const cachePaths = [join(cwd, "node_modules", ".vite", "task-cache")];
-  const packageManagerCacheDir = await getCommandOutput("vp", ["pm", "cache", "dir"], { cwd });
-
-  if (packageManagerCacheDir) {
-    cachePaths.unshift(packageManagerCacheDir);
-  }
-
-  return cachePaths;
+async function getPackageManagerCacheDirs(cwd: string): Promise<string[]> {
+  const cacheDir = await getCommandOutput("vp", ["pm", "cache", "dir"], { cwd });
+  return cacheDir ? [cacheDir] : [];
 }

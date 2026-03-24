@@ -38,7 +38,7 @@ async function runMain(inputs: Inputs): Promise<void> {
 
   // Step 5: Restore cache if enabled
   if (inputs.cache) {
-    await restoreCache(inputs);
+    await restoreCache(inputs, nodeVersion);
   }
 
   // Step 6: Run vp install if requested
