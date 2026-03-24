@@ -131,7 +131,13 @@ export async function getDependencyCacheDirectories(
 }
 
 export function getTaskCacheDirectories(cwd: string): string[] {
-  return [join(cwd, "node_modules", ".vite", "task-cache")];
+  return Array.from(
+    new Set([
+      join(cwd, "node_modules", ".vite", "task-cache"),
+      join(cwd, "node_modules", ".cache"),
+      join(cwd, "tsconfig.tsbuildinfo"),
+    ]),
+  );
 }
 
 export function getTaskCacheScope(cwd: string, nodeVersion?: string): string {

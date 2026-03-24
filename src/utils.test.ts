@@ -354,10 +354,22 @@ describe("getDependencyCacheDirectories", () => {
 });
 
 describe("getTaskCacheDirectories", () => {
-  it("should return the local vite task cache directory for the provided cwd", () => {
+  const mockWorkspace = "/test/workspace";
+
+  beforeEach(() => {
+    vi.stubEnv("GITHUB_WORKSPACE", mockWorkspace);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("should return the task cache paths for the provided cwd", () => {
     const cacheCwd = join("/test", "workspace", "web");
     expect(getTaskCacheDirectories(cacheCwd)).toEqual([
       join(cacheCwd, "node_modules", ".vite", "task-cache"),
+      join(cacheCwd, "node_modules", ".cache"),
+      join(cacheCwd, "tsconfig.tsbuildinfo"),
     ]);
   });
 });
