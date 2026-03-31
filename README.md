@@ -183,8 +183,6 @@ When `cache: true` is set, the action additionally caches project dependencies a
 It also caches task outputs under:
 
 - `./node_modules/.vite/task-cache`
-- `./node_modules/.cache`
-- `./tsconfig.tsbuildinfo`
 
 This task cache is stored under a separate key scoped to the workflow/job, project directory, and Node.js version to avoid collisions between different CI tasks.
 

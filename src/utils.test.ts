@@ -368,8 +368,6 @@ describe("getTaskCacheDirectories", () => {
     const cacheCwd = join("/test", "workspace", "web");
     expect(getTaskCacheDirectories(cacheCwd)).toEqual([
       join(cacheCwd, "node_modules", ".vite", "task-cache"),
-      join(cacheCwd, "node_modules", ".cache"),
-      join(cacheCwd, "tsconfig.tsbuildinfo"),
     ]);
   });
 });
