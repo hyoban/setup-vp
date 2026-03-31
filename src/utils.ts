@@ -3,7 +3,7 @@ import { getExecOutput } from "@actions/exec";
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, dirname, isAbsolute, join, relative } from "node:path";
+import { basename, isAbsolute, join, relative } from "node:path";
 import type { Inputs } from "./types.js";
 import { LockFileType } from "./types.js";
 import type { LockFileInfo } from "./types.js";
@@ -83,28 +83,22 @@ export function detectLockFile(
     return undefined;
   }
 
-  const workspaceRoot = getWorkspaceDir();
+  // Auto-detect: search for lock files in the provided workspace directory
+  const workspaceContents = readdirSync(workspace);
 
-  // Auto-detect: search the provided directory first, then walk upward to the workspace root.
-  // This lets package-level working directories reuse the monorepo root lock file.
-  let currentDir = workspace;
-  while (true) {
-    const lockFile = findLockFileInDirectory(currentDir);
-    if (lockFile) {
-      return lockFile;
+  for (const lockInfo of LOCK_FILES) {
+    if (workspaceContents.includes(lockInfo.filename)) {
+      const fullPath = join(workspace, lockInfo.filename);
+      info(`Auto-detected lock file: ${lockInfo.filename}`);
+      return {
+        type: lockInfo.type,
+        path: fullPath,
+        filename: lockInfo.filename,
+      };
     }
-
-    if (currentDir === workspaceRoot) {
-      return undefined;
-    }
-
-    const parentDir = dirname(currentDir);
-    if (parentDir === currentDir) {
-      return undefined;
-    }
-
-    currentDir = parentDir;
   }
+
+  return undefined;
 }
 
 function inferLockFileType(fullPath: string, filename: string): LockFileInfo {
@@ -180,22 +174,4 @@ async function getCommandOutput(
 async function getPackageManagerCacheDirs(cwd: string): Promise<string[]> {
   const cacheDir = await getCommandOutput("vp", ["pm", "cache", "dir"], { cwd });
   return cacheDir ? [cacheDir] : [];
-}
-
-function findLockFileInDirectory(workspace: string): LockFileInfo | undefined {
-  const workspaceContents = readdirSync(workspace);
-
-  for (const lockInfo of LOCK_FILES) {
-    if (workspaceContents.includes(lockInfo.filename)) {
-      const fullPath = join(workspace, lockInfo.filename);
-      info(`Auto-detected lock file: ${lockInfo.filename}`);
-      return {
-        type: lockInfo.type,
-        path: fullPath,
-        filename: lockInfo.filename,
-      };
-    }
-  }
-
-  return undefined;
 }
