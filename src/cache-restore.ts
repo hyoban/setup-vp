@@ -28,8 +28,8 @@ export async function restoreCache(inputs: Inputs, nodeVersion?: string): Promis
   }
 
   info(`Using lock file: ${lockFile.path}`);
-  const cacheCwd = dirname(lockFile.path);
-  info(`Resolving cache directories in: ${cacheCwd}`);
+  const lockFileDir = dirname(lockFile.path);
+  info(`Resolving cache directories in: ${lockFileDir}`);
 
   // Generate cache key: vite-plus-{platform}-{arch}-{lockfile-type}-{hash}
   const runnerOS = process.env.RUNNER_OS || platform();
@@ -40,15 +40,15 @@ export async function restoreCache(inputs: Inputs, nodeVersion?: string): Promis
     throw new Error(`Failed to generate hash for lock file: ${lockFile.path}`);
   }
 
-  const dependencyCachePaths = await getDependencyCacheDirectories(lockFile.type, cacheCwd);
+  const dependencyCachePaths = await getDependencyCacheDirectories(lockFile.type, lockFileDir);
   if (dependencyCachePaths.length) {
     debug(`Dependency cache paths: ${dependencyCachePaths.join(", ")}`);
     saveState(State.DependencyCachePaths, JSON.stringify(dependencyCachePaths));
   } else {
-    warning(`No dependency cache directories found for ${lockFile.type} in ${cacheCwd}.`);
+    warning(`No dependency cache directories found for ${lockFile.type} in ${lockFileDir}.`);
   }
 
-  const taskCachePaths = getTaskCacheDirectories(cacheCwd);
+  const taskCachePaths = getTaskCacheDirectories(lockFileDir);
   debug(`Task cache paths: ${taskCachePaths.join(", ")}`);
   saveState(State.TaskCachePaths, JSON.stringify(taskCachePaths));
 
@@ -57,7 +57,7 @@ export async function restoreCache(inputs: Inputs, nodeVersion?: string): Promis
     `vite-plus-${runnerOS}-${runnerArch}-${lockFile.type}-`,
     `vite-plus-${runnerOS}-${runnerArch}-`,
   ];
-  const taskScope = getTaskCacheScope(cacheCwd, nodeVersion);
+  const taskScope = getTaskCacheScope(lockFileDir, nodeVersion);
   const taskPrimaryKey = `vite-plus-task-${runnerOS}-${runnerArch}-${lockFile.type}-${taskScope}-${fileHash}`;
 
   debug(`Dependency cache primary key: ${dependencyPrimaryKey}`);

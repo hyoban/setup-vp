@@ -189,6 +189,32 @@ describe("detectLockFile", () => {
 
       expect(result).toBeUndefined();
     });
+
+    it("should walk up to the workspace root when running in a package directory", () => {
+      const packageDir = join(mockWorkspace, "packages", "app");
+      vi.mocked(readdirSync).mockImplementation((dir) => {
+        if (dir === packageDir) {
+          return ["package.json", "src"] as unknown as ReturnType<typeof readdirSync>;
+        }
+        if (dir === join(mockWorkspace, "packages")) {
+          return ["app"] as unknown as ReturnType<typeof readdirSync>;
+        }
+        if (dir === mockWorkspace) {
+          return ["package.json", "pnpm-lock.yaml", "packages"] as unknown as ReturnType<
+            typeof readdirSync
+          >;
+        }
+        return [] as unknown as ReturnType<typeof readdirSync>;
+      });
+
+      const result = detectLockFile(undefined, packageDir);
+
+      expect(result).toEqual({
+        type: LockFileType.Pnpm,
+        path: join(mockWorkspace, "pnpm-lock.yaml"),
+        filename: "pnpm-lock.yaml",
+      });
+    });
   });
 });
 
@@ -364,10 +390,10 @@ describe("getTaskCacheDirectories", () => {
     vi.unstubAllEnvs();
   });
 
-  it("should return the task cache paths for the provided cwd", () => {
-    const cacheCwd = join("/test", "workspace", "web");
-    expect(getTaskCacheDirectories(cacheCwd)).toEqual([
-      join(cacheCwd, "node_modules", ".vite", "task-cache"),
+  it("should return the task cache paths for the provided root directory", () => {
+    const cacheRoot = join("/test", "workspace");
+    expect(getTaskCacheDirectories(cacheRoot)).toEqual([
+      join(cacheRoot, "node_modules", ".vite", "task-cache"),
     ]);
   });
 });

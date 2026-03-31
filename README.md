@@ -188,9 +188,11 @@ This task cache is stored under a separate key scoped to the workflow/job, proje
 
 The dependency cache key format is: `vite-plus-{OS}-{arch}-{pm}-{lockfile-hash}`
 
-When `working-directory` is set, lockfile auto-detection runs in that directory.
+When `working-directory` is set, lockfile auto-detection starts in that directory and walks upward to the workspace root. This allows package-level jobs in a monorepo to reuse the root lock file.
 
-When `cache-dependency-path` points to a lock file in a subdirectory, the action resolves the package-manager cache directory from that lock file's directory.
+The package-manager cache directory is resolved from the lock file's directory.
+
+The Vite+ task cache path is always resolved from the detected lock file directory, so monorepos consistently use the root `node_modules/.vite/task-cache` when the root lock file is in use.
 
 ## Example Workflow
 
