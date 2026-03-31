@@ -28,7 +28,7 @@ steps:
   - uses: actions/checkout@v6
   - uses: voidzero-dev/setup-vp@v1
     with:
-      node-version: "22"
+      node-version: "lts"
 ```
 
 ### With Node.js Version File
@@ -61,7 +61,7 @@ steps:
   - uses: actions/checkout@v6
   - uses: voidzero-dev/setup-vp@v1
     with:
-      node-version: "22"
+      node-version: "lts"
       cache: true
       run-install: true
 ```
@@ -74,7 +74,7 @@ steps:
   - uses: voidzero-dev/setup-vp@v1
     with:
       version: "1.2.3"
-      node-version: "22"
+      node-version: "lts"
       cache: true
 ```
 
@@ -85,7 +85,7 @@ steps:
   - uses: actions/checkout@v6
   - uses: voidzero-dev/setup-vp@v1
     with:
-      node-version: "22"
+      node-version: "lts"
       cache: true
       run-install: |
         - cwd: ./packages/app
@@ -102,13 +102,29 @@ steps:
   - uses: actions/checkout@v6
   - uses: voidzero-dev/setup-vp@v1
     with:
-      node-version: "22"
+      node-version: "lts"
       registry-url: "https://npm.pkg.github.com"
       scope: "@myorg"
       run-install: false
   - run: vp install
     env:
       NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+```
+
+### Alpine Container
+
+Alpine Linux uses musl libc instead of glibc. Install compatibility packages before using the action:
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: alpine:3.21
+    steps:
+      - run: apk add --no-cache bash curl gcompat libstdc++
+      - uses: actions/checkout@v6
+      - uses: voidzero-dev/setup-vp@v1
 ```
 
 ### Matrix Testing with Multiple Node.js Versions
@@ -197,7 +213,7 @@ jobs:
 
       - uses: voidzero-dev/setup-vp@v1
         with:
-          node-version: "22"
+          node-version: "lts"
           cache: true
 
       - run: vp run build

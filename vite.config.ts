@@ -1,6 +1,9 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
+  test: {
+    include: ["src/**/*.test.ts"],
+  },
   staged: {
     "*": "vp check --fix",
   },
@@ -8,13 +11,19 @@ export default defineConfig({
     entry: ["./src/index.ts"],
     format: ["esm"],
     outDir: "dist",
-    noExternal: [/.*/],
-    inlineOnly: false,
+    deps: {
+      alwaysBundle: [/.*/],
+      onlyBundle: false,
+    },
     clean: true,
     minify: true,
   },
   lint: {
     ignorePatterns: ["dist/**/*"],
+    options: {
+      typeAware: true,
+      typeCheck: true,
+    },
   },
   fmt: {
     ignorePatterns: ["dist/**/*"],

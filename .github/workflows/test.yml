@@ -16,7 +16,7 @@ jobs:
         version: [latest, alpha]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Vite+ (${{ matrix.version }})
         uses: ./
@@ -32,11 +32,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: ["22", "24"]
+        node-version: ["lts", "22", "24"]
         version: [latest, alpha]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Vite+ (${{ matrix.version }}) with Node.js ${{ matrix.node-version }}
         uses: ./
@@ -54,7 +54,9 @@ jobs:
         run: |
           ACTUAL=$(node --version)
           echo "Node.js version: $ACTUAL"
-          echo "$ACTUAL" | grep -q "^v${{ matrix.node-version }}\." || (echo "Expected Node.js v${{ matrix.node-version }}.x but got $ACTUAL" && exit 1)
+          if [ "${{ matrix.node-version }}" != "lts" ]; then
+            echo "$ACTUAL" | grep -q "^v${{ matrix.node-version }}\." || (echo "Expected Node.js v${{ matrix.node-version }}.x but got $ACTUAL" && exit 1)
+          fi
 
   test-cache-pnpm:
     strategy:
@@ -63,7 +65,7 @@ jobs:
         version: [latest, alpha]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Create test project with pnpm-lock.yaml
         run: |
@@ -94,7 +96,7 @@ jobs:
         version: [latest, alpha]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Create test project with package-lock.json
         run: |
@@ -125,7 +127,7 @@ jobs:
         version: [latest, alpha]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Create test project with yarn.lock
         run: |
@@ -157,7 +159,7 @@ jobs:
         version: [latest, alpha]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Vite+ (${{ matrix.version }})
         uses: ./
@@ -177,7 +179,7 @@ jobs:
         version: [latest, alpha]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Create test project
         shell: bash
@@ -209,7 +211,7 @@ jobs:
         version: [latest, alpha]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Vite+ (${{ matrix.version }}) with registry-url
         uses: ./
@@ -231,10 +233,37 @@ jobs:
         run: |
           echo "NODE_AUTH_TOKEN is set: ${NODE_AUTH_TOKEN:+yes}"
 
+  test-alpine-container:
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [latest, alpha]
+    runs-on: ubuntu-latest
+    container:
+      image: alpine:3.23
+    steps:
+      - name: Install Alpine dependencies
+        run: apk add --no-cache bash curl gcompat libstdc++
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Vite+ (${{ matrix.version }})
+        uses: ./
+        with:
+          version: ${{ matrix.version }}
+          run-install: false
+          cache: false
+
+      - name: Verify installation
+        run: vp --version
+
+      - name: Verify vp exec works
+        run: vp exec node -e "console.log('vp exec works in Alpine')"
+
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Vite+ with cache
         uses: ./
